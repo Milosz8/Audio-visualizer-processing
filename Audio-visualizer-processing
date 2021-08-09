@@ -1,0 +1,393 @@
+import ddf.minim.*;                 //
+import ddf.minim.analysis.*;        //
+import ddf.minim.effects.*;         //Import biblioteki MINIM.
+import ddf.minim.signals.*;         //
+import ddf.minim.spi.*;             //
+import ddf.minim.ugens.*;           //
+
+FFT fft;                            //Implementacja szybkiej transformacji Fouriera
+
+
+AudioSample as1;                    //
+AudioSample as2;                    //
+AudioSample as3;                    //
+AudioSample as4;                    //zmienne 'as1-8'wywyiedzione z klasy AudioSample
+AudioSample as5;                    //
+AudioSample as6;                    //
+AudioSample as7;                    //
+AudioSample as8;                    //
+
+Minim m;                            //zmienna 'm' wywiedziona z klasy minim
+
+AudioPlayer ap;                     //zmienna 'ap' wywiedziona z klasy AudioPlayer
+
+AudioInput in;                      //zmienna 'in' wywiedziona z klasy AudioInput
+
+void minim_init()
+{
+ m= new Minim(this);                //inicjalizacja zmiennej "m"
+ in = m.getLineIn();
+}
+
+AudioMetaData meta;
+BeatDetect beat;
+
+import themidibus.*;                //import biblioteki MIDIBUS
+MidiBus myBus;                      //zmienna 'myBus' wywiedziona z klasy MidiBus
+
+
+//zmienne - pulsująca 'fioletowa kula'
+int radius = 100;
+float nScale = 100;
+float noiseMulti=100;
+
+//------------------------------
+
+//zmienne - pulsujący 'zielona łza' 
+int radius1 = 250;
+float nScale1 = 100; 
+float noiseMulti1=150;
+  
+  
+  
+int backgroundColor = 0;
+boolean draw3D = false;
+
+void setup(){
+  
+  size(1800, 900, P3D);
+  
+  minim_init();
+  
+  background(backgroundColor);
+  
+  ap= m.loadFile("drum.mp3", 512);        // 
+                                          //
+  as1=m.loadSample("BD0000.mp3",512);     //
+  as2=m.loadSample("BD0010.mp3",512);     //
+  as3=m.loadSample("CB.mp3",512);         // przypisywanie wcześniej przygotowanych 
+  as4=m.loadSample("SD0010.mp3",512);     // próbek dźwięków do zmiennych
+  as5=m.loadSample("CH.mp3",512);         //
+  as6=m.loadSample("CP.mp3",512);         //
+  as7=m.loadSample("test.mp3",512);       //
+  as8=m.loadSample("BD0000.mp3",512);     //
+  
+  //wiz nr 1 funkcja biblioteki minim wykrywająca rytm próbce dźwiękowej
+  beat = new BeatDetect(in.bufferSize(), in.sampleRate());
+  
+ 
+  //kod dla kontrolera midi
+  MidiBus.list();                    //wyświetlenie wszystkich urządzeń MIDI zainstalowanych na komputerze
+  myBus = new MidiBus(this,0,3);     //przypisanie odpowiedniego wejścia i wyjścia MIDI
+ 
+ 
+ 
+ smooth();
+ 
+ //wizualizacja nr 2 skaczące słupki
+ fft= new FFT(in.bufferSize(), in.sampleRate()); 
+  
+}
+
+void draw(){
+   
+  background(backgroundColor);
+  float f0 = float(width) / float(in.bufferSize());
+  float f1 = float(width) * 0.50;
+  float f2 = float(height) * 0.25;//0.25
+  float f3 = float(height) * 0.50;//0.50
+  float f4 = float(height) * 0.75;//0.75
+  
+  float f5 = 100.0;
+  float f6,f7,f8,f9;
+  int i1 = 1;
+  
+  if(draw3D)
+  {
+    background(backgroundColor);
+     colorMode(RGB);
+     strokeWeight(3); 
+     stroke(255,0,255);
+ 
+     ambientLight(100,100,200);
+     pushMatrix();
+     translate(width/2,height/2, -800);
+     rotateX(float(mouseY - height / 2)/300.0);          //   sterowanie kamerą
+     rotateY(float(mouseX - width / 2) / 300.0);         //   
+     beginShape(QUADS);
+     for(int i = 0; i<in.bufferSize() -1; i+=i1)
+     {
+       if(i + i1 < ap.bufferSize())
+       {
+         fill(i,0,255);        //  trówymiarowe pasy
+         stroke(i,0,255);                                //
+         f6 = -f1 + f0 *i;                               //
+         f7 = -f3 + f2 + in.left.get(i) * f3 ;           //        
+         f8 = -f1 + f0* (i+i1);                          //
+         f9 = -f3 +f2 + in.left.get(i + i1)*f3;          //   pas górny
+         vertex(f6,f7,-f5);                              //   lewy kanał
+         vertex(f6,f7,f5);                               //
+         vertex(f8, f9, f5);                             //
+         vertex (f8, f9, -f5);                           //
+           
+         f6 = -f1 + f0 * i;                              //
+         f7 = -f3 + f4 + in.right.get(i) * f3;           //
+         f8 = -f1 + f0 * (i+i1);                         //
+         f9 = -f3 + f4 + in.right.get(i+i1)*f3;          //
+         vertex(f6,f7,-f5);                              //   pas dolny
+         vertex(f6,f7,f5);                               //   prawy kanał
+         vertex(f8,f9,f5);                               //
+         vertex(f8,f9,-f5);                              //
+                    
+         f6 = -f1 + f0 * i;                              //
+         f7 =  in.right.get(i)*in.left.get(i) * f3;      //
+         f8 = -f1 + f0 * (i+i1);                         //
+         f9 =  in.right.get(i+i1)*in.left.get(i+i1)*f3;  //
+         vertex(f6,f7,-f5);                              //   pas środkowy
+         vertex(f6,f7,f5);                               //   lewy * prawy
+         vertex(f8,f9,f5);                               //
+         vertex(f8,f9,-f5);                              // 
+       }
+     }
+     endShape();
+     popMatrix();
+      
+         
+    fft.forward(in.mix);
+    for ( int d = 0; d <fft.specSize(); d++)
+    {
+       colorMode(HSB);
+       stroke(d,255,255);
+       fill(d,255,255);
+       int w=((width-600) /40);
+       float y = map (fft.getBand(d),0,256,height,0);
+       rect(d*w,y-100,w-2,height-y);
+     
+       // pomocnicza podziałka (wartości w Hz)
+       textSize(20);
+       text("40Hz", 16, 850); 
+       text("170Hz", 110, 850);
+       text("350Hz", 226, 850); 
+       text("510Hz", 342, 850);
+       text("700Hz", 468, 850);
+       text("860Hz", 584, 850);
+       text("1kHz", 702, 850);
+       text("1.2kHz", 818, 850);
+       text("1.4kHz", 932, 850);
+       text("1.55kHz", 1048, 850);
+       text("1.8kHz", 1164, 850);
+       text("2kHz", 1380, 850); 
+       text("2.3kHz", 1600, 850);
+     }
+         
+  }
+  else
+  {
+    
+   colorMode(RGB);
+   
+   noStroke();
+   
+   rect(0,0,width,height);
+   strokeWeight(float(mouseY)/height * 8.0); 
+   fill(0,float(mouseX)/width * 100.0);
+   
+   
+   for(int i = 0; i < in.bufferSize() -1; i++)
+   {
+     
+     stroke(255);
+     line(
+     f0 * i, f2+ in.left.get(i) *f3,
+     f0 *(i+1), f2+in.left.get(i+1) * f3
+     );
+     
+     line(
+     f0 * i, f4+in.right.get(i) *f3,
+     f0 *(i+1),f4+in.right.get(i+1) *f3
+     );
+     
+     
+     line(
+     f0 * i, 2*f2+in.right.get(i)*in.left.get(i) *f3,
+     f0 *(i+1),2*f2+in.right.get(i+1)*in.left.get(i+1) *f3
+     );
+   }
+   
+   
+   beat.detect(in.mix);
+   if (beat.isKick() ) 
+   {
+    
+      stroke(255,0,255 );
+      noFill();
+      noiseMulti = 140;
+      nScale = 110;
+      
+   } else
+   {
+      if (nScale > 200) nScale *= 2.1;
+      noiseMulti *= 10.1;
+      stroke(100,0,255);
+   }
+  
+  
+  translate(width/2,height/2);
+  for (int lat = -90; lat < 90; lat+=4)
+  {
+   
+    for (int lng = -180; lng < 180; lng+=4)
+    {
+      
+      float _lat = radians(lat);  
+      
+      float _lng = radians(lng);  
+      
+      float n = noise(_lat * noiseMulti / 100, _lng * noiseMulti / 100 + millis() );
+ 
+      float x = (radius + n * nScale) * cos(_lat) * sin(_lng);
+      
+      float y = (radius + n * nScale) * sin(_lat) * (-1);
+      
+      float z = (radius + n * nScale) * cos(_lat) * cos(_lng);
+           
+      point(x, y, z);
+      color(1);
+    }
+  }
+  
+  
+  
+  if (beat.isHat() && beat.isSnare() ) 
+  { 
+    stroke(1,255,255 );
+    noiseMulti1 = 120;
+    nScale1 = 110;
+
+  } else 
+  {
+    if (nScale1 > 200) nScale1 *= 4.1;
+    noiseMulti1 *= 10.1;
+    stroke(2,255,100);
+  }
+  
+  for (int lat1 = -90; lat1 < 90; lat1+=4)
+  {
+    
+    for (int lng1 = -180; lng1 < 180; lng1+=4)
+    {
+      
+      float _lat1 = radians(lat1)*2;  
+      
+      float _lng1 = radians(lng1)*40;  
+      
+      float n1 = noise(_lat1 * noiseMulti1 / 100, _lng1 * noiseMulti1 / 100 + millis() );
+ 
+      float x1 = (radius1 + n1 * nScale1) * cos(_lat1) * cos(_lng1);
+      
+      float y1 = (radius1 + n1 * nScale1) * sin(_lat1) * (-1);
+      
+      float z1 = (radius1 + n1 * nScale1) * sin(_lat1) * sin(_lng1);
+           
+      point(x1, y1, z1);
+      
+    }
+  }
+  
+  if (beat.isKick()) 
+  {
+    
+    for (int i =10; i<255; i++)
+    {
+      stroke(0,i,255 );
+    }
+    //noFill();
+    fill(80);
+    triangle(86*-4, 75*4-100, 0, -86*5+100, 86*4, 75*4-100);
+    
+  }
+ 
+  }
+     
+}
+
+void controllerChange(int channel, int number, int value)   // funkcja wykrywająca uruchomiony klawisz 
+{                                                           // kontrolera MIDI
+  
+  println(channel);      // wypisanie w konsoli numeru kanału, numeru klawisza 
+  println(number);       // i wartości jakiej przyjmuje.
+  println(value);        // Ma to na celu zlokalizowanie akutalnie używanego przycisku
+                         // pokrętła kontrolera MIDI.
+
+  if (number == 30)
+  {
+  float vol = map(value,1,127,-60,0);    // mapowanie wartości głośności do pokrętła nr 9
+  ap.setGain(vol);
+  }
+  if (number == 37)
+  {
+  float pan = map(value,1,127,-1,1);    // mapowanie wartości balansu do pokrętła nr 10
+  ap.setBalance(pan);
+  }
+  if (number == 8){
+   ap.play();                           // przypisanie funkcji 'play' do pada nr 6
+  }
+  if( number == 5){                     // przypisanie funkcji 'pause' do pada nr 5
+  ap.pause();
+  }
+  if (number==3){
+   ap.rewind();                         // przypisanie funkcji 'stop' do pada nr 7
+   ap.pause();
+  }
+  if (number==4){                       // przypisanie funkcji 'rewind' do pada nr 8
+   ap.rewind(); 
+  }
+  if (number ==6&& value !=0){
+   ap.skip(200);                        // przypisanie funkcji 'skip' do pada nr 2
+  }
+  if (number ==9)
+  {
+   ap.mute();                           // przypisanie funkcji 'mute' do pada nr 4
+  }else{ap.unmute();}
+  
+  
+  
+  // przypisanie próbek dźwięku pod drugi zestaw "padów"
+  
+  if (number == 10 && value !=0){    // kick 1 
+   as1.trigger(); 
+  }
+  if (number == 11 && value !=0){    // kick 2/bass
+   as2.trigger(); 
+  }
+  if (number == 12 && value !=0){    // cowbell
+   as3.trigger(); 
+  }
+  if (number == 13 && value !=0){    // snare  
+   as4.trigger();       
+  }
+  if (number == 14 && value !=0){    // hi
+   as5.trigger(); 
+  }
+  if (number == 15 && value !=0){    // clap
+   as6.trigger(); 
+  }
+  if (number == 16 && value !=0){    // test częstotliwości dźwięku
+   as7.trigger(); 
+  }
+  if (number == 17 && value !=0){    // kick 3
+   as8.trigger(); 
+  }
+  
+}
+
+void stop()
+{
+ ap.close();
+ ap.pause();
+ 
+}
+
+void keyReleased(){    
+  if( key == 'd' ) draw3D =! draw3D;  
+}
